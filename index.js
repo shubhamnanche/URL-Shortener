@@ -1,15 +1,23 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
-const staticRouter = require("./routes/staticRouter");
+const cookieParser = require("cookie-parser");
+const {
+  restrictToLoggedInUsersOnly,
+  checkAuth,
+} = require("./middlewares/auth");
 const URL = require("./models/url");
 
-const connectMongoDb = require("./connect");
+const staticRouter = require("./routes/staticRouter");
 const urlRouter = require("./routes/url");
+const userRouter = require("./routes/user");
+
+const connectMongoDb = require("./connect");
+
 const app = express();
 const PORT = 8001;
 
-connectMongoDb("mongodb://127.0.0.1:27017/url")
+connectMongoDb("mongodb://127.0.0.1:27017/short-url")
   .then(() => {
     console.log("Mongo DB connected");
   })
@@ -22,9 +30,11 @@ app.set("views", path.resolve("./views"));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
-app.use("/url", urlRouter);
-app.use("/", staticRouter);
+app.use("/url", restrictToLoggedInUsersOnly, urlRouter);
+app.use("/", checkAuth, staticRouter);
+app.use("/user", userRouter);
 
 app.get("/test", async (req, res) => {
   const allUrls = await URL.find({});
